@@ -1,9 +1,8 @@
 import { OData, ODataFilter, PlainODataMultiResponse } from "@odata/client";
 import { Collection, SwissParlEntity } from "./models";
 
-const serviceUrl = "https://ws.parlament.ch/odata.svc/$metadata";
 const client = OData.New({
-  metadataUri: serviceUrl,
+  serviceEndpoint: "https://ws.parlament.ch/odata.svc/",
 });
 
 const MAX_RESULTS = 1000;
@@ -41,33 +40,36 @@ function createFilter<T>(filterOptions: FilterOptions<T>): ODataFilter {
     properties.forEach((entity) => {
       Object.entries(entity).forEach(([key, value]) => {
         if (operator === "substringOf") {
-          substringFilter.push(`substringof('${value}', ${key})`)
+          substringFilter.push(`substringof('${value}', ${key})`);
         } else {
           const typedOperator = operator as keyof ODataFilter;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (filter.property(key) as any)[typedOperator](value);
         }
       });
     });
   });
   if (substringFilter.length > 0) {
-    filter.property('(' + substringFilter.join(" or ") + ')').eq(true);
+    filter.property("(" + substringFilter.join(" or ") + ")").eq(true);
   }
   return filter;
 }
 
-function parseRespone<T>(response: PlainODataMultiResponse<T>): T[] {
+function parseResponse<T>(response: PlainODataMultiResponse<T>): T[] {
   return response.d?.results !== undefined
     ? response.d.results
-    : (response.d as any);
+    : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (response.d as any);
 }
 
 function deepParseResponse<T>(
   response: PlainODataMultiResponse<T>,
   expandProperties: Array<keyof T>
 ): T[] {
-  const entities = parseRespone(response);
+  const entities = parseResponse(response);
   return entities.map((entity) => {
     expandProperties.forEach((key) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       entity[key] = (entity[key] as any)?.results ?? entity[key];
     });
     return entity;
@@ -120,7 +122,7 @@ export async function fetchCollection<T extends SwissParlEntity>(
       return deepParseResponse(oData, options.expand);
     }
 
-    return parseRespone(oData);
+    return parseResponse(oData);
   } catch (e) {
     console.error("parse failed", e);
   }
